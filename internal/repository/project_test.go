@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -31,16 +31,32 @@ func TestFindByID_NotFound(t *testing.T) {
 	db, mock := newMock(t)
 	repo := NewProjectRepository(db)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
+	// No rows → sql.ErrNoRows → repo maps to ErrNotFound.
+	mock.ExpectQuery("FROM projects WHERE project_id").
 		WithArgs("missing").
-		WillReturnError(sqlmock.ErrCancelled) // placeholder; replace with sql.ErrNoRows path
+		WillReturnError(sql.ErrNoRows)
 
 	_, err := repo.FindByID(context.Background(), "missing")
-	if err == nil {
-		t.Fatal("want error, got nil")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
 	}
-	// TODO: assert errors.Is(err, ErrNotFound) once row-less result is mocked.
-	_ = errors.Is(err, ErrNotFound)
+}
+
+func TestSoftDelete_NoRowsIsNotFound(t *testing.T) {
+	db, mock := newMock(t)
+	repo := NewProjectRepository(db)
+
+	// 0 rows affected → ErrNotFound (project did not exist).
+	mock.ExpectExec("UPDATE projects SET status = 'inactive'").
+		WithArgs("missing").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	if err := repo.SoftDelete(context.Background(), "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %v", err)
+	}
 }
 
 func TestFindAll_OrdersByCreatedAtDesc(t *testing.T) {

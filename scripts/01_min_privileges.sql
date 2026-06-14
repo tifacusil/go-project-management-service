@@ -8,7 +8,7 @@
 -- 6 services (Shared Persistency bad smell). Strangler Fig cutover to a dedicated
 -- MySQL instance per service is pending; until then this scopes blast radius.
 
-CREATE USER IF NOT EXISTS 'proj-manager'@'%' IDENTIFIED BY 'CHANGE_ME';
+CREATE USER IF NOT EXISTS 'proj-manager'@'%' IDENTIFIED BY 'V9QCr8h2et42UIJ0MS';
 
 GRANT SELECT, INSERT, UPDATE ON project_management_db.projects   TO 'proj-manager'@'%';
 GRANT SELECT, INSERT, UPDATE ON project_management_db.sensors    TO 'proj-manager'@'%';

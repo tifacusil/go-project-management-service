@@ -83,15 +83,18 @@ equipment_id (descansa en la PK). Misma laguna que Java → colisión PK devuelv
 
 | Capa | Estado | Detalle |
 |---|---|---|
-| Unit — repository | 🟡 | esqueleto en `project_test.go`; falta caso real ErrNotFound |
-| Unit — service (reglas de negocio) | ⬜ | dup/tipo/soft-delete/merge sin tests |
+| Unit — repository | ✅ | `project_test.go`: ErrNotFound (ErrNoRows + softDelete 0-rows) |
+| Unit — service (reglas de negocio) | ✅ | project/sensor/equipment: dup, tipo, soft-delete, merge, mismatch, project-exists |
 | Routing (handlers) | ✅ | `routing_test.go` (httptest + fakes) |
 | Contract tests (vs OpenAPI / JSON Schema) | ⬜ | — |
 | CDCT (pact-go) | ⬜ | — |
 | Integration (Testcontainers MySQL) | ⬜ | flujo CRUD crítico |
 
-**Criterio de hecho:** unit de service cubre todas las reglas; existe al menos un
-integration contra MySQL efímero.
+**Criterio de hecho:** unit de service cubre todas las reglas ✅; existe al menos
+un integration contra MySQL efímero ⬜.
+
+**Sub-estado:** capa unit cerrada. Faltan contract tests, CDCT e integration para
+dar M4 por ✅ completo.
 
 ---
 

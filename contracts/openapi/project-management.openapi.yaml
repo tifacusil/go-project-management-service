@@ -1,0 +1,277 @@
+# OpenAPI contract for project-management-service (CLAUDE.md §1.1 contract-first).
+#
+# TODO(SE-practice): this lives per-service for now; the canonical home is the
+# shared monorepo `contracts/` so consumers can run CDCT (pact-go) against it
+# (CLAUDE.md §3.3). Move on monorepo integration.
+openapi: 3.0.3
+info:
+  title: project-management-service
+  version: 0.1.0
+  description: CRUD de proyectos de monitoreo de deslizamientos, sus sensores y equipamiento.
+servers:
+  - url: http://localhost:8084
+paths:
+  /health:
+    get:
+      summary: Health check (verifica conectividad real a MySQL)
+      operationId: health
+      responses:
+        "200":
+          description: Servicio y BD operativos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: BD inaccesible
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /api/v1/projects:
+    get:
+      summary: Lista proyectos (orden created_at desc)
+      operationId: listProjects
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Project" }
+    post:
+      summary: Crea un proyecto
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectInput" }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/v1/projects/{project_id}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 64 }
+    get:
+      summary: Obtiene un proyecto con sus sensores
+      operationId: getProject
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      summary: Actualiza un proyecto (campos nulos conservan valor previo)
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectInput" }
+      responses:
+        "200":
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      summary: Soft delete (status=inactive). Rechaza si hay sensores activos.
+      operationId: deleteProject
+      responses:
+        "204": { description: Eliminado (soft) }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/projects/{project_id}/sensors:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 64 }
+    get:
+      summary: Lista sensores de un proyecto
+      operationId: listSensors
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Sensor" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      summary: Registra un sensor (rechaza tipo inválido / id duplicado)
+      operationId: createSensor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Sensor" }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sensor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/projects/{project_id}/sensors/{sensor_id}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 64 }
+      - name: sensor_id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 64 }
+    get:
+      summary: Obtiene un sensor
+      operationId: getSensor
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sensor" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      summary: Actualiza un sensor (campos nulos conservan valor previo)
+      operationId: updateSensor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Sensor" }
+      responses:
+        "200":
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sensor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      summary: Soft delete del sensor (status=inactive)
+      operationId: deleteSensor
+      responses:
+        "204": { description: Eliminado (soft) }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/projects/{project_id}/equipment:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 64 }
+    get:
+      summary: Lista equipamiento de un proyecto
+      operationId: listEquipment
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Equipment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      summary: Registra un equipo (rechaza tipo inválido)
+      operationId: createEquipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Equipment" }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Equipment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+components:
+  responses:
+    BadRequest:
+      description: Petición inválida
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Recurso no existe
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [UP, DOWN] }
+        db: { type: string }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Project:
+      type: object
+      required: [project_id, name, status, created_at]
+      properties:
+        project_id: { type: string, maxLength: 64 }
+        name: { type: string, maxLength: 255 }
+        location_lat: { type: number, format: double, nullable: true }
+        location_lng: { type: number, format: double, nullable: true }
+        status: { type: string, enum: [active, inactive] }
+        created_at: { type: string, format: date-time }
+        sensors:
+          type: array
+          items: { $ref: "#/components/schemas/Sensor" }
+    ProjectInput:
+      type: object
+      required: [project_id, name]
+      properties:
+        project_id: { type: string, maxLength: 64 }
+        name: { type: string, maxLength: 255 }
+        location_lat: { type: number, format: double, nullable: true }
+        location_lng: { type: number, format: double, nullable: true }
+        status: { type: string, enum: [active, inactive] }
+    Sensor:
+      type: object
+      required: [sensor_id, project_id, status]
+      properties:
+        sensor_id: { type: string, maxLength: 64 }
+        project_id: { type: string, maxLength: 64 }
+        sensor_type:
+          type: string
+          enum: [gnss, rainfall, strain, soil_pressure, deep_displacement, camera]
+        model: { type: string, maxLength: 128, nullable: true }
+        install_lat: { type: number, format: double, nullable: true }
+        install_lng: { type: number, format: double, nullable: true }
+        install_depth: { type: number, format: double, nullable: true }
+        status: { type: string, enum: [active, inactive] }
+        installed_at: { type: string, format: date-time, nullable: true }
+    Equipment:
+      type: object
+      required: [equipment_id, project_id, status]
+      properties:
+        equipment_id: { type: string, maxLength: 64 }
+        project_id: { type: string, maxLength: 64 }
+        type:
+          type: string
+          enum: [DTU, solar_panel, battery, chassis, camera]
+        model: { type: string, maxLength: 128, nullable: true }
+        serial: { type: string, maxLength: 128, nullable: true }
+        status: { type: string, enum: [active, inactive] }

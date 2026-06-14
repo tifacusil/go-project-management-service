@@ -1,1 +1,10 @@
 **.env**
+*.md
+.vscode/
+/bin/
+*.exe
+*.out
+coverage.*
+
+!README.md
+!ROADMAP.md

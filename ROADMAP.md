@@ -123,12 +123,12 @@ negocio, igual que el baseline usa mappers directamente.
 
 ---
 
-## M6 — Observabilidad / resiliencia completa ⬜
+## M6 — Observabilidad / resiliencia completa ✅
 
 | Pieza | Estado | Detalle |
 |---|---|---|
-| Métricas Prometheus `/metrics` (CLAUDE.md §5) | ⬜ | CPU, memoria, throughput, latencia p50/p90/p95/p99 |
-| Auditoría de campos de log estructurado | 🟡 | base puesta; falta revisar cobertura por evento |
+| Métricas Prometheus `/metrics` (CLAUDE.md §5) | ✅ | `http_requests_total` + `http_request_duration_seconds` (method/route/status, route=patrón chi); CPU/mem vía `process_*`/`go_*`. Verificado e2e en contenedor. p50..p99 vía `histogram_quantile()`. |
+| Auditoría de campos de log estructurado | ✅ | service/instance_id/trace_id/event presentes y verificados en logs e2e |
 | Verificación real de registro en Consul | ✅ | hecho en M8: registrado + check passing |
 
 **Nota:** circuit breaker / retry / DLQ (CLAUDE.md §4) **no aplican** a este
@@ -192,9 +192,10 @@ M2 Sensors             ✅
 M3 Equipment           ✅
 M4 Testing             ✅  (unit + integration; contract/CDCT opcionales)
 M5 Seed                ✅
-M6 Observabilidad      🟡  (Consul verificado; falta /metrics Prometheus)
+M6 Observabilidad      ✅
 M7 Strangler           ⬜ (futuro)
 M8 Run/verify e2e      🟡  (CRUD+Consul verde vs infra real; falta deregister por señal)
 ```
 
-Próximo hito sugerido: **M6** (`/metrics` Prometheus). A decidir.
+Hitos núcleo (M0–M6) cerrados. Restan: **M7** (Strangler, futuro/coordinado a nivel
+monorepo) y el caveat de **M8** (deregister por señal — recordatorio en código).

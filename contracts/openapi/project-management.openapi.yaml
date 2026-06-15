@@ -9,7 +9,10 @@ info:
   version: 0.1.0
   description: CRUD de proyectos de monitoreo de deslizamientos, sus sensores y equipamiento.
 servers:
-  - url: http://localhost:8084
+  - url: http://localhost:8090
+    description: Acceso directo al contenedor (sirve en raíz)
+  - url: http://localhost/api/v1/projects
+    description: A través del gateway nginx (reescribe el prefix a la raíz del servicio)
 paths:
   /health:
     get:
@@ -26,7 +29,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Health" }
-  /api/v1/projects:
+  /:
     get:
       summary: Lista proyectos (orden created_at desc)
       operationId: listProjects
@@ -53,7 +56,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Project" }
         "400": { $ref: "#/components/responses/BadRequest" }
-  /api/v1/projects/{project_id}:
+  /{project_id}:
     parameters:
       - name: project_id
         in: path
@@ -92,7 +95,7 @@ paths:
         "204": { description: Eliminado (soft) }
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /api/v1/projects/{project_id}/sensors:
+  /{project_id}/sensors:
     parameters:
       - name: project_id
         in: path
@@ -126,7 +129,7 @@ paths:
               schema: { $ref: "#/components/schemas/Sensor" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /api/v1/projects/{project_id}/sensors/{sensor_id}:
+  /{project_id}/sensors/{sensor_id}:
     parameters:
       - name: project_id
         in: path
@@ -168,7 +171,7 @@ paths:
       responses:
         "204": { description: Eliminado (soft) }
         "404": { $ref: "#/components/responses/NotFound" }
-  /api/v1/projects/{project_id}/equipment:
+  /{project_id}/equipment:
     parameters:
       - name: project_id
         in: path

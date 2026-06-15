@@ -28,23 +28,63 @@ Microservicio REST en Go para la gestión de **proyectos**, **sensores** y **equ
 
 ## Endpoints
 
-Base: `/api/v1`
+El servicio sirve en **raíz** (el gateway nginx añade el prefix público `/api/v1/projects`; ver [Ruteo](#ruteo-el-servicio-sirve-en-raíz)).
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/projects` | Lista proyectos |
-| `POST` | `/projects` | Crea un proyecto |
-| `GET` | `/projects/{project_id}` | Obtiene un proyecto |
-| `PUT` | `/projects/{project_id}` | Actualiza un proyecto |
-| `DELETE` | `/projects/{project_id}` | Elimina un proyecto |
-| `GET` | `/projects/{project_id}/sensors` | Lista sensores del proyecto |
-| `POST` | `/projects/{project_id}/sensors` | Crea un sensor |
-| `GET` | `/projects/{project_id}/sensors/{sensor_id}` | Obtiene un sensor |
-| `PUT` | `/projects/{project_id}/sensors/{sensor_id}` | Actualiza un sensor |
-| `DELETE` | `/projects/{project_id}/sensors/{sensor_id}` | Elimina un sensor |
-| `GET` | `/projects/{project_id}/equipment` | Lista equipamiento del proyecto |
-| `POST` | `/projects/{project_id}/equipment` | Crea equipamiento |
-| `GET` | `/health` | Health check (verifica la BD) |
+| Método | Ruta real (servicio) | Ruta pública (vía nginx) | Descripción |
+|--------|----------------------|--------------------------|-------------|
+| `GET` | `/` | `/api/v1/projects/` | Lista proyectos |
+| `POST` | `/` | `/api/v1/projects/` | Crea un proyecto |
+| `GET` | `/{project_id}` | `/api/v1/projects/{project_id}` | Obtiene un proyecto |
+| `PUT` | `/{project_id}` | `/api/v1/projects/{project_id}` | Actualiza un proyecto |
+| `DELETE` | `/{project_id}` | `/api/v1/projects/{project_id}` | Elimina un proyecto |
+| `GET` | `/{project_id}/sensors` | `/api/v1/projects/{project_id}/sensors` | Lista sensores del proyecto |
+| `POST` | `/{project_id}/sensors` | `/api/v1/projects/{project_id}/sensors` | Crea un sensor |
+| `GET` | `/{project_id}/sensors/{sensor_id}` | `…/sensors/{sensor_id}` | Obtiene un sensor |
+| `PUT` | `/{project_id}/sensors/{sensor_id}` | `…/sensors/{sensor_id}` | Actualiza un sensor |
+| `DELETE` | `/{project_id}/sensors/{sensor_id}` | `…/sensors/{sensor_id}` | Elimina un sensor |
+| `GET` | `/{project_id}/equipment` | `…/equipment` | Lista equipamiento del proyecto |
+| `POST` | `/{project_id}/equipment` | `…/equipment` | Crea equipamiento |
+| `GET` | `/health` | `/api/v1/projects/health` | Health check (verifica la BD) |
+| `GET` | `/docs/` | `/api/v1/projects/docs/` | Swagger UI |
+| `GET` | `/docs/openapi.yaml` | `/api/v1/projects/docs/openapi.yaml` | Especificación OpenAPI (YAML) |
+
+### Documentación interactiva (Swagger UI)
+
+La especificación OpenAPI se sirve embebida en el binario y se visualiza con Swagger UI (assets desde CDN; sin dependencias Go nuevas):
+
+- **Acceso directo:** `http://localhost:8090/docs/`
+- **Vía gateway nginx:** `http://localhost/api/v1/projects/docs/` (reusa el `location` existente; **no requiere cambios en nginx**)
+- **Spec OpenAPI:** `http://localhost:8090/docs/openapi.yaml`
+
+La UI sirve **bajo el prefix de cada servicio** (no en un `/docs` global), por lo que no colisiona con la documentación de los demás microservicios del gateway. Para lograrlo:
+
+- La UI carga el spec con una URL **relativa** (`openapi.yaml`), robusta ante cualquier prefix.
+- El servicio redirige `/docs` → `/docs/` con un `Location` **relativo**, preservando el prefix público del gateway.
+
+> El spec servido es la copia [docs/openapi.yaml](docs/openapi.yaml) (limitación de `go:embed`, que no permite rutas con `..`). La fuente canónica es [contracts/openapi/project-management.openapi.yaml](contracts/openapi/project-management.openapi.yaml); mantener ambas en sync.
+
+### Ruteo: el servicio sirve en raíz
+
+El servicio expone sus rutas **en la raíz** (`/`, `/{project_id}`, `/{project_id}/sensors`, …), igual que el resto de servicios del gateway. El gateway nginx reescribe el prefix público y delega:
+
+```nginx
+location /api/v1/projects/ {
+  set     $svc http://project-management-1:8080;
+  rewrite ^/api/v1/projects/(.*)$ /$1 break;
+  proxy_pass $svc;
+  # ...
+}
+```
+
+Por tanto:
+
+| Ruta pública (vía nginx) | Ruta real en el servicio |
+|--------------------------|--------------------------|
+| `http://localhost/api/v1/projects/` | `/` |
+| `http://localhost/api/v1/projects/{id}` | `/{id}` |
+| `http://localhost/api/v1/projects/{id}/sensors` | `/{id}/sensors` |
+| `http://localhost/api/v1/projects/health` | `/health` |
+| `http://localhost/api/v1/projects/docs/` | `/docs/` |
 
 ## Configuración
 
@@ -99,7 +139,7 @@ docker run -d --name project-management-1 --hostname project-management-1 \
   -e INSTANCE_ID=project-management-01 \
   -e HTTP_PORT=8080 \
   -e DB_HOST=mysql-project-management \
-  -e DB_PORT=3308 \
+  -e DB_PORT=3306 \
   -e CONSUL_HOST=consul-1 \
   -e CONSUL_PORT=8500 \
   -e ADVERTISE_HOST=project-management-1 \

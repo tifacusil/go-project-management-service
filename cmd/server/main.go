@@ -18,6 +18,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 
+	"github.com/tifacusil/go-project-management-service/docs"
 	"github.com/tifacusil/go-project-management-service/internal/config"
 	"github.com/tifacusil/go-project-management-service/internal/discovery"
 	"github.com/tifacusil/go-project-management-service/internal/handler"
@@ -97,15 +98,19 @@ func run(cfg config.Config, logger *slog.Logger, instanceID string) error {
 	// CPU/memoria vía colectores default (go_*/process_*).
 	r.Handle("/metrics", metrics.Handler())
 
-	// Routes under /api/v1 (baseline parity). Sensors/equipment nest inside the
-	// project's /{project_id} block so leaf + nested routes coexist.
+	// El servicio sirve en raíz: el gateway nginx reescribe
+	// /api/v1/projects/(.*) -> /$1, igual que el resto de servicios del gateway.
+	// Así localhost/api/v1/projects/{id}/sensors llega aquí como /{id}/sensors.
+	// Sensors/equipment anidan dentro del bloque /{project_id} para que las rutas
+	// hoja y anidadas coexistan.
 	projectsRouter := projectHandler.Routes(func(pr chi.Router) {
 		pr.Mount("/sensors", sensorHandler.Routes())
 		pr.Mount("/equipment", equipmentHandler.Routes())
 	})
-	r.Route("/api/v1", func(api chi.Router) {
-		api.Mount("/projects", projectsRouter)
-	})
+	r.Mount("/", projectsRouter)
+
+	// Swagger UI + spec OpenAPI: GET /docs (UI), GET /docs/openapi.yaml (spec).
+	r.Mount("/docs", docs.Routes())
 
 	// Health check: real DB connectivity (CLAUDE.md §1.6). RabbitMQ check N/A —
 	// this service is REST/CRUD only, no broker consumer/producer.

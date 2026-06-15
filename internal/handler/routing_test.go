@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/tifacusil/go-project-management-service/docs"
 	"github.com/tifacusil/go-project-management-service/internal/domain"
 )
 
@@ -59,7 +60,10 @@ func (fakeEquipmentSvc) Create(_ context.Context, pid string, e *domain.Equipmen
 	return e, nil
 }
 
-// buildRouter mirrors main.go wiring — this is what catches a chi mount overlap panic.
+// buildRouter mirrors main.go wiring — this is what catches a chi mount overlap
+// panic. El servicio sirve en raíz (el gateway nginx reescribe el prefix
+// /api/v1/projects); se montan /docs y /health junto a la raíz comodín para
+// que el test detecte solapamientos reales de mount.
 func buildRouter() chi.Router {
 	pj := NewProjectHandler(fakeProjectSvc{}, validator.New(validator.WithRequiredStructEnabled()))
 	sn := NewSensorHandler(fakeSensorSvc{})
@@ -71,7 +75,9 @@ func buildRouter() chi.Router {
 	})
 
 	r := chi.NewRouter()
-	r.Route("/api/v1", func(api chi.Router) { api.Mount("/projects", projects) })
+	r.Mount("/docs", docs.Routes())
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Mount("/", projects)
 	return r
 }
 
@@ -83,11 +89,14 @@ func TestRouting(t *testing.T) {
 		method, path string
 		want         int
 	}{
-		{"GET", "/api/v1/projects", http.StatusOK},
-		{"GET", "/api/v1/projects/p1", http.StatusOK},
-		{"GET", "/api/v1/projects/p1/sensors", http.StatusOK},
-		{"GET", "/api/v1/projects/p1/sensors/s1", http.StatusOK},
-		{"GET", "/api/v1/projects/p1/equipment", http.StatusOK},
+		{"GET", "/", http.StatusOK},
+		{"GET", "/p1", http.StatusOK},
+		{"GET", "/p1/sensors", http.StatusOK},
+		{"GET", "/p1/sensors/s1", http.StatusOK},
+		{"GET", "/p1/equipment", http.StatusOK},
+		// Rutas estáticas ganan sobre el comodín /{project_id}.
+		{"GET", "/health", http.StatusOK},
+		{"GET", "/docs/openapi.yaml", http.StatusOK},
 	}
 	for _, c := range cases {
 		req, _ := http.NewRequest(c.method, srv.URL+c.path, nil)

@@ -46,6 +46,14 @@ func (r *ProjectRepository) FindByID(ctx context.Context, id string) (*domain.Pr
 	return &p, nil
 }
 
+func (r *ProjectRepository) CountAll(ctx context.Context) (int, error) {
+	var n int
+	if err := r.db.GetContext(ctx, &n, `SELECT COUNT(*) FROM projects`); err != nil {
+		return 0, fmt.Errorf("count all projects: %w", err)
+	}
+	return n, nil
+}
+
 func (r *ProjectRepository) CountByID(ctx context.Context, id string) (int, error) {
 	var n int
 	q := `SELECT COUNT(*) FROM projects WHERE project_id = ?`

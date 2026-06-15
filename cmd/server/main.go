@@ -23,6 +23,7 @@ import (
 	"github.com/tifacusil/go-project-management-service/internal/handler"
 	"github.com/tifacusil/go-project-management-service/internal/observability"
 	"github.com/tifacusil/go-project-management-service/internal/repository"
+	"github.com/tifacusil/go-project-management-service/internal/seed"
 	"github.com/tifacusil/go-project-management-service/internal/service"
 )
 
@@ -66,6 +67,14 @@ func run(cfg config.Config, logger *slog.Logger, instanceID string) error {
 	projectRepo := repository.NewProjectRepository(db)
 	sensorRepo := repository.NewSensorRepository(db)
 	equipmentRepo := repository.NewEquipmentRepository(db)
+
+	// Seed inicial idempotente (DataInitializer). Falla suave: un error de seed
+	// no debe impedir que el servicio arranque (paridad Java).
+	if cfg.SeedEnabled {
+		if err := seed.Run(ctx, projectRepo, sensorRepo, logger); err != nil {
+			logger.Warn("seed inicial omitido", "event", "seed", "err", err)
+		}
+	}
 
 	projectSvc := service.NewProjectService(projectRepo, sensorRepo)
 	sensorSvc := service.NewSensorService(projectRepo, sensorRepo)

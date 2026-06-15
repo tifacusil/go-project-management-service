@@ -43,6 +43,14 @@ func (r *SensorRepository) FindByIDAndProjectID(ctx context.Context, projectID, 
 	return &s, nil
 }
 
+func (r *SensorRepository) CountAll(ctx context.Context) (int, error) {
+	var n int
+	if err := r.db.GetContext(ctx, &n, `SELECT COUNT(*) FROM sensors`); err != nil {
+		return 0, fmt.Errorf("count all sensors: %w", err)
+	}
+	return n, nil
+}
+
 func (r *SensorRepository) CountByID(ctx context.Context, sensorID string) (int, error) {
 	var n int
 	q := `SELECT COUNT(*) FROM sensors WHERE sensor_id = ?`

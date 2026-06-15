@@ -46,6 +46,9 @@ type Config struct {
 	ConsulAddr           string // host:port
 	ConsulToken          string
 	ConsulHealthInterval string
+
+	// Seed inicial (puerto de DataInitializer). Default true (paridad Java).
+	SeedEnabled bool
 }
 
 // Load reads .env (if present) then env vars. Env wins over .env.
@@ -79,6 +82,7 @@ func Load() Config {
 		ConsulAddr:           env("CONSUL_HOST", "localhost") + ":" + env("CONSUL_PORT", "8500"),
 		ConsulToken:          env("CONSUL_TOKEN", ""),
 		ConsulHealthInterval: env("CONSUL_HEALTH_INTERVAL", "10s"), // CLAUDE.md §4 (Java baseline usaba 15s)
+		SeedEnabled:          envBool("SEED_ENABLED", true),
 	}
 }
 

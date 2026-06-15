@@ -102,11 +102,24 @@ REST/CRUD sin AMQP. Se dejan como mejora futura, no como deuda de M4.
 
 ---
 
-## M5 — Seed / DataInitializer ⬜
+## M5 — Seed / DataInitializer ✅
 
 **Objetivo:** portar `DataInitializer.java` (carga inicial condicionada por flag).
 
-**Criterio de hecho:** seed idempotente, activable por env, no corre en prod por defecto.
+| Pieza | Estado | Detalle |
+|---|---|---|
+| Seeder idempotente | ✅ | `internal/seed/seed.go`: siembra solo si tabla vacía |
+| Datos | ✅ | 2 proyectos (shangtan/lingzhan) + 17 sensores (gnss/rainfall/camera), paridad Java |
+| Flag de activación | ✅ | `SEED_ENABLED` (default true, paridad `app.seed.enabled`) |
+| Falla suave | ✅ | error de seed → warn, no impide arranque |
+| Unit tests | ✅ | vacío→siembra, no-vacío→no-op, projects-existen→solo-sensores (3/3) |
+| Verificado e2e | ✅ | en contenedor real: 2 projects / 17 sensors; re-arranque = no-op |
+
+**Criterio de hecho:** seed idempotente ✅, activable por env (`SEED_ENABLED`) ✅.
+Para no sembrar en prod: `SEED_ENABLED=false`.
+
+**Nota:** el seed inserta vía repos (no service) para saltar validaciones de
+negocio, igual que el baseline usa mappers directamente.
 
 ---
 
@@ -178,10 +191,10 @@ M1 Projects            ✅
 M2 Sensors             ✅
 M3 Equipment           ✅
 M4 Testing             ✅  (unit + integration; contract/CDCT opcionales)
-M5 Seed                ⬜
+M5 Seed                ✅
 M6 Observabilidad      🟡  (Consul verificado; falta /metrics Prometheus)
 M7 Strangler           ⬜ (futuro)
 M8 Run/verify e2e      🟡  (CRUD+Consul verde vs infra real; falta deregister por señal)
 ```
 
-Próximo hito sugerido: **M5** (seed) o **M6** (`/metrics` Prometheus). A decidir.
+Próximo hito sugerido: **M6** (`/metrics` Prometheus). A decidir.

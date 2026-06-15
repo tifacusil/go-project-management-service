@@ -44,7 +44,14 @@ func run(cfg config.Config, logger *slog.Logger, instanceID string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("connecting to mysql", "event", "db_connect", "host", cfg.DBHost, "db", cfg.DBName)
+	// Apply schema migrations as root before serving (goose = fuente de verdad).
+	// Runtime queries luego usan el usuario de mínimos privilegios.
+	logger.Info("running migrations", "event", "db_migrate")
+	if err := config.MigrateUp(cfg); err != nil {
+		return err
+	}
+
+	logger.Info("connecting to mysql", "event", "db_connect", "host", cfg.DBHost, "db", cfg.DBName, "user", cfg.DBUser)
 	db, err := config.Connect(ctx, cfg)
 	if err != nil {
 		return err

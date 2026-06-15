@@ -32,6 +32,11 @@ type Config struct {
 	DBPass string
 	DBName string
 
+	// Migration credentials: goose corre como root (DDL) al startup, separado
+	// del usuario runtime de mínimos privilegios (CLAUDE.md §2.4).
+	DBRootUser string
+	DBRootPass string
+
 	DBMaxOpenConns int
 	DBMaxIdleConns int
 
@@ -61,6 +66,8 @@ func Load() Config {
 		DBUser:         env("DB_USER", "proj-manager"),
 		DBPass:         env("DB_PASS", ""),
 		DBName:         env("DB_NAME", "project_management_db"),
+		DBRootUser:     env("DB_ROOT_USER", "root"),
+		DBRootPass:     env("DB_ROOT_PASS", ""),
 		DBMaxOpenConns: envInt("DB_MAX_OPEN_CONNS", 25),
 		DBMaxIdleConns: envInt("DB_MAX_IDLE_CONNS", 25),
 
@@ -80,15 +87,28 @@ func Load() Config {
 // (ver scripts/01_min_privileges.sql). Cutover Strangler Fig pendiente:
 // extraer a instancia MySQL dedicada por servicio.
 func (c Config) DSN() string {
+	return c.dsnFor(c.DBUser, c.DBPass, nil)
+}
+
+// RootDSN builds the connection string used only for migrations (goose up as
+// root, DDL). multiStatements habilitado para statements de migración.
+func (c Config) RootDSN() string {
+	return c.dsnFor(c.DBRootUser, c.DBRootPass, map[string]string{"multiStatements": "true"})
+}
+
+func (c Config) dsnFor(user, pass string, extra map[string]string) string {
 	cfg := mysql.NewConfig()
-	cfg.User = c.DBUser
-	cfg.Passwd = c.DBPass
+	cfg.User = user
+	cfg.Passwd = pass
 	cfg.Net = "tcp"
 	cfg.Addr = c.DBHost + ":" + c.DBPort
 	cfg.DBName = c.DBName
 	cfg.ParseTime = true // scan DATETIME into time.Time
 	cfg.Loc = time.UTC
 	cfg.Params = map[string]string{"charset": "utf8mb4"}
+	for k, v := range extra {
+		cfg.Params[k] = v
+	}
 	return cfg.FormatDSN()
 }
 

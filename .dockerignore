@@ -1,0 +1,27 @@
+# VCS + tooling
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Secrets / env
+.env
+.env.*
+*.env
+
+# Docs
+*.md
+
+# Build output
+/bin/
+/out/
+*.exe
+*.out
+coverage.*
+
+# Tests (not needed in image build)
+**/*_test.go
+
+# Docker meta
+Dockerfile
+.dockerignore

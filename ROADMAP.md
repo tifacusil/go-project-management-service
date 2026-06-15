@@ -116,7 +116,7 @@ REST/CRUD sin AMQP. Se dejan como mejora futura, no como deuda de M4.
 |---|---|---|
 | Métricas Prometheus `/metrics` (CLAUDE.md §5) | ⬜ | CPU, memoria, throughput, latencia p50/p90/p95/p99 |
 | Auditoría de campos de log estructurado | 🟡 | base puesta; falta revisar cobertura por evento |
-| Verificación real de registro en Consul | ⬜ | depende de M8 |
+| Verificación real de registro en Consul | ✅ | hecho en M8: registrado + check passing |
 
 **Nota:** circuit breaker / retry / DLQ (CLAUDE.md §4) **no aplican** a este
 servicio — es REST/CRUD, sin llamadas HTTP salientes entre servicios ni consumo
@@ -134,13 +134,32 @@ coordinado a nivel monorepo.
 
 ---
 
-## M8 — Run / verify end-to-end ⬜
+## M8 — Run / verify end-to-end 🟡 (casi ✅)
 
 **Objetivo:** levantar el servicio contra MySQL + Consul reales y verificar el
 flujo CRUD completo (no solo build/test).
 
-**Criterio de hecho:** `go run` arranca, migración aplica, requests reales
-devuelven datos, servicio aparece en Consul, deregistra al apagar.
+| Verificación | Estado |
+|---|---|
+| goose migra al startup (schema canónico, Opción B) | ✅ |
+| re-arranque idempotente ("no migrations to run") | ✅ |
+| conexión runtime como usuario min-priv | ✅ |
+| endpoints CRUD con códigos HTTP correctos | ✅ (201/200/400/404/204) |
+| reglas de negocio (dup, tipo inválido, sensor activo) | ✅ |
+| persistencia real (soft-deletes en MySQL) | ✅ |
+| Consul: registrado + visible + check **passing** | ✅ |
+| graceful deregister al apagar | ⚠️ código correcto; no ejercitado por señal (Win/Git Bash no entrega SIGINT a exe nativo) |
+
+**Aprendizajes operativos:**
+- **Schema:** Opción B confirmada — goose dueño del schema; el infra solo crea
+  DB vacía + usuario. Migración como root (`DB_ROOT_*`), runtime como svc min-priv.
+- **`ADVERTISE_HOST=host.docker.internal`** obligatorio cuando Consul corre en
+  contenedor y el servicio en el host; con `127.0.0.1` el check falla y Consul
+  desregistra tras `DeregisterCriticalServiceAfter`.
+
+**Pendiente para ✅ pleno:** verificar el deregister con una señal real (probar en
+Linux/contenedor, o `Ctrl+C` manual en una terminal Windows). El código
+(`defer reg.Deregister()` en `ctx.Done()`) es estándar y correcto.
 
 ---
 
@@ -153,10 +172,9 @@ M2 Sensors             ✅
 M3 Equipment           ✅
 M4 Testing             ✅  (unit + integration; contract/CDCT opcionales)
 M5 Seed                ⬜
-M6 Observabilidad      ⬜
+M6 Observabilidad      🟡  (Consul verificado; falta /metrics Prometheus)
 M7 Strangler           ⬜ (futuro)
-M8 Run/verify e2e      ⬜  ← repos ya verificados vs MySQL real; falta arranque e2e
+M8 Run/verify e2e      🟡  (CRUD+Consul verde vs infra real; falta deregister por señal)
 ```
 
-Próximo hito sugerido: **M8** (arranque end-to-end contra la infra ya levantada)
-o **M5** (seed). A decidir.
+Próximo hito sugerido: **M5** (seed) o **M6** (`/metrics` Prometheus). A decidir.

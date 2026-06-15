@@ -85,10 +85,17 @@ func run(cfg config.Config, logger *slog.Logger, instanceID string) error {
 	sensorHandler := handler.NewSensorHandler(sensorSvc)
 	equipmentHandler := handler.NewEquipmentHandler(equipmentSvc)
 
+	metrics := observability.NewMetrics()
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(observability.RequestLogger(logger))
+	r.Use(metrics.Middleware)
 	r.Use(middleware.Recoverer)
+
+	// Métricas Prometheus (CLAUDE.md §5): throughput + latencia por percentil;
+	// CPU/memoria vía colectores default (go_*/process_*).
+	r.Handle("/metrics", metrics.Handler())
 
 	// Routes under /api/v1 (baseline parity). Sensors/equipment nest inside the
 	// project's /{project_id} block so leaf + nested routes coexist.

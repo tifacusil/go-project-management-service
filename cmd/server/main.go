@@ -120,6 +120,12 @@ func run(cfg config.Config, logger *slog.Logger, instanceID string) error {
 
 	// Register in Consul (CLAUDE.md §6.5). fail-fast=false: a Consul blip must
 	// not crash-loop the service, so registration errors are logged, not fatal.
+	//
+	// TODO(M8-verify): deregister-on-shutdown está verificado por lectura pero no
+	// ejercitado por señal — en Windows/Git Bash `kill -INT` no llega a un exe
+	// nativo. Confirmar con SIGINT real: `Ctrl+C` en una terminal Windows con la
+	// infra levantada, o corriendo el binario en Linux/contenedor. Debe loguear
+	// "consul deregistered" y desaparecer de /v1/agent/services.
 	reg := registerConsul(cfg, logger, instanceID)
 	if reg != nil {
 		defer func() {

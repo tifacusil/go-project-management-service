@@ -20,13 +20,19 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
 
 # ---- Runtime stage ----
-FROM gcr.io/distroless/static-debian12:nonroot
+# Alpine en vez de distroless: el healthcheck del compose de infra usa `wget`,
+# que distroless no incluye. Alpine trae wget (busybox) + CA certs + tzdata.
+FROM alpine:3.21
+
+RUN apk add --no-cache ca-certificates tzdata \
+    && adduser -D -u 10001 appuser
 
 WORKDIR /app
 COPY --from=build /out/server /app/server
 
-EXPOSE 8084
+# Puerto HTTP por defecto (el compose mapea 8090:8080).
+EXPOSE 8080
 
-USER nonroot:nonroot
+USER appuser
 
 ENTRYPOINT ["/app/server"]

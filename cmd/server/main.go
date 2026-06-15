@@ -28,7 +28,11 @@ import (
 
 func main() {
 	cfg := config.Load()
-	instanceID := cfg.ServiceName + "-" + uuid.NewString()
+	// El orquestador puede inyectar INSTANCE_ID; si no, se genera uno único.
+	instanceID := cfg.InstanceID
+	if instanceID == "" {
+		instanceID = cfg.ServiceName + "-" + uuid.NewString()
+	}
 
 	logger := observability.NewLogger(cfg.ServiceName, instanceID)
 	slog.SetDefault(logger)

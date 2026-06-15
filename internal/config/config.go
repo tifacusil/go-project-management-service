@@ -22,7 +22,8 @@ type Config struct {
 	ServiceVersion string
 	Env            string
 
-	HTTPAddr      string // listen addr, e.g. ":8084"
+	InstanceID    string // id de instancia inyectado por el orquestador (vacío => generado)
+	HTTPAddr      string // listen addr, e.g. ":8080"
 	AdvertiseHost string // host/ip anunciado a Consul (prefer-ip-address)
 	HealthPath    string
 
@@ -56,8 +57,11 @@ func Load() Config {
 		ServiceName:    env("SERVICE_NAME", "project-management-service"),
 		ServiceVersion: env("SERVICE_VERSION", "0.1.0"),
 		Env:            env("ENV", "dev"),
+		InstanceID:     os.Getenv("INSTANCE_ID"), // del orquestador (compose/k8s); vacío => se genera
 
-		HTTPAddr:      env("HTTP_ADDR", ":8084"),
+		// HTTP_ADDR tiene prioridad si está seteado; si no, se construye
+		// desde HTTP_PORT (contrato del compose de infra). Default :8080.
+		HTTPAddr:      httpAddr(),
 		AdvertiseHost: env("ADVERTISE_HOST", "127.0.0.1"),
 		HealthPath:    env("HEALTH_PATH", "/health"),
 
@@ -137,6 +141,16 @@ func Connect(ctx context.Context, c Config) (*sqlx.DB, error) {
 	}
 
 	return db, nil
+}
+
+// httpAddr resuelve la dirección de escucha. HTTP_ADDR (e.g. ":8080") gana si
+// está seteado; si no, se construye desde HTTP_PORT (default 8080) para cumplir
+// el contrato del compose de infra.
+func httpAddr() string {
+	if a := os.Getenv("HTTP_ADDR"); a != "" {
+		return a
+	}
+	return ":" + env("HTTP_PORT", "8080")
 }
 
 func env(key, def string) string {

@@ -86,6 +86,57 @@ Por tanto:
 | `http://localhost/api/v1/projects/health` | `/health` |
 | `http://localhost/api/v1/projects/docs/` | `/docs/` |
 
+## Prácticas de ingeniería y de microservicios
+
+Las prácticas aplicadas, con su ubicación en el código. Las referencias `§` apuntan a `CLAUDE.md` (guía de ingeniería del proyecto).
+
+### Arquitectura y diseño
+
+| Práctica | Cómo / dónde |
+|----------|--------------|
+| **Arquitectura por capas** | `handler → service → repository → domain`, cada capa una responsabilidad: [internal/handler/](internal/handler/), [internal/service/](internal/service/), [internal/repository/](internal/repository/), [internal/domain/](internal/domain/domain.go) |
+| **Dependency Inversion + interfaces estrechas** | Cada capa define la interfaz mínima que consume de la inferior → testeable sin BD: `projectRepo`/`sensorRepo` en [service/project.go](internal/service/project.go); `ProjectAPI`/`SensorAPI` en [handler/project.go](internal/handler/project.go) |
+| **Inyección de dependencias manual** | Sin contenedor; wiring explícito por constructores en [cmd/server/main.go](cmd/server/main.go) |
+| **Errores desacoplados del transporte** | El service usa `Kind` (Invalid/NotFound/Conflict) sin importar `net/http`; el handler mapea a status: [service/errors.go](internal/service/errors.go) + `failErr` en [handler/respond.go](internal/handler/respond.go) |
+
+### Microservicios
+
+| Práctica | Cómo / dónde |
+|----------|--------------|
+| **Contract-first** (§1.1) | OpenAPI antes que los handlers + Swagger UI runtime: [contracts/openapi/project-management.openapi.yaml](contracts/openapi/project-management.openapi.yaml) |
+| **Database-per-service + mínimos privilegios** (§1.2, §2.4) | Instancia MySQL dedicada, schema propio, usuario solo `SELECT/INSERT/UPDATE` (sin `DELETE`: soft delete = UPDATE): [scripts/01_min_privileges.sql](scripts/01_min_privileges.sql) |
+| **Health check real** (§1.6) | `/health` pinguea MySQL (no 200 estático): [cmd/server/main.go](cmd/server/main.go) |
+| **Configuración externalizada** (§1.7) | Todo por env; separa credenciales runtime (min-priv) de migración (root): [internal/config/config.go](internal/config/config.go) |
+| **Logging estructurado + correlation id** (§1.8, §5) | JSON con `service`/`instance_id`/`trace_id`/`event`: [internal/observability/logging.go](internal/observability/logging.go) |
+| **Métricas Prometheus** (§5) | `/metrics`: throughput + latencia (label `route` = patrón chi → cardinalidad acotada) + CPU/memoria: [internal/observability/metrics.go](internal/observability/metrics.go) |
+| **Service discovery (Consul)** (§6.5) | Registro/desregistro, *fail-fast=false*, check HTTP: [internal/discovery/consul.go](internal/discovery/consul.go) |
+
+### Operación y resiliencia
+
+| Práctica | Cómo / dónde |
+|----------|--------------|
+| **Graceful shutdown** | `signal.NotifyContext` → drenado 15 s → desregistro de Consul: [cmd/server/main.go](cmd/server/main.go) |
+| **Retry/backoff del pool de BD** | Ping con backoff exponencial (1 s → cap 10 s, máx 30 s): `Connect` en [internal/config/config.go](internal/config/config.go) |
+| **Migraciones versionadas** (§2.4) | goose como fuente de verdad del schema; embebidas en el binario, idempotentes, corren al arranque: [migrations/embed.go](migrations/embed.go) + [internal/config/migrate.go](internal/config/migrate.go) |
+
+### Testing (pirámide, §3)
+
+| Capa | Dónde |
+|------|-------|
+| Unit — reglas de negocio | [service/*_test.go](internal/service/) |
+| Unit — repository (sqlmock) | [repository/project_test.go](internal/repository/project_test.go) |
+| Routing — handlers (httptest + fakes) | [handler/routing_test.go](internal/handler/routing_test.go) |
+| Integración — Testcontainers MySQL | [repository/integration_test.go](internal/repository/integration_test.go) (tag `integration`) |
+
+### Build / cadena de suministro
+
+- **Imagen multi-stage**, base mínima, usuario no-root, binario *stripped*, `CGO_ENABLED=0`: [Dockerfile](Dockerfile).
+- **`go.sum` versionado**; secretos fuera de git (`.env` ignorado, `.env.example` con placeholders).
+
+### No aplicable (decisión documentada, §4/§7)
+
+Circuit breaker, retry entre servicios, DLQ e idempotent consumer **no aplican**: este servicio es REST/CRUD, sin llamadas HTTP salientes a otros servicios ni consumo de RabbitMQ. Se documenta como N/A en lugar de omitirse en silencio (§7).
+
 ## Configuración
 
 La configuración se obtiene de variables de entorno (o de un fichero `.env` opcional; las variables de entorno tienen prioridad).

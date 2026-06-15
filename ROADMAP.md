@@ -79,22 +79,26 @@ equipment_id (descansa en la PK). Misma laguna que Java → colisión PK devuelv
 
 ---
 
-## M4 — Pirámide de pruebas (CLAUDE.md §3) 🟡
+## M4 — Pirámide de pruebas (CLAUDE.md §3) ✅
 
 | Capa | Estado | Detalle |
 |---|---|---|
 | Unit — repository | ✅ | `project_test.go`: ErrNotFound (ErrNoRows + softDelete 0-rows) |
 | Unit — service (reglas de negocio) | ✅ | project/sensor/equipment: dup, tipo, soft-delete, merge, mismatch, project-exists |
 | Routing (handlers) | ✅ | `routing_test.go` (httptest + fakes) |
-| Contract tests (vs OpenAPI / JSON Schema) | ⬜ | — |
-| CDCT (pact-go) | ⬜ | — |
-| Integration (Testcontainers MySQL) | ⬜ | flujo CRUD crítico |
+| Integration (Testcontainers MySQL) | ✅ | `integration_test.go` (tag `integration`): CRUD + goose + counts, verde contra MySQL 8.0 |
+| Contract tests (vs OpenAPI / JSON Schema) | ⬜ | opcional — valor menor |
+| CDCT (pact-go) | ⬜ | opcional — sin productores/consumidores AMQP en este servicio |
 
-**Criterio de hecho:** unit de service cubre todas las reglas ✅; existe al menos
-un integration contra MySQL efímero ⬜.
+**Criterio de hecho:** unit cubre todas las reglas ✅; integration contra MySQL
+efímero verde ✅. → **M4 cumple criterio.**
 
-**Sub-estado:** capa unit cerrada. Faltan contract tests, CDCT e integration para
-dar M4 por ✅ completo.
+**Cómo correr integration:** `go test -tags=integration ./internal/repository/`
+(requiere Docker; excluido del `go test ./...` por defecto). Verificado: 2/2 PASS,
+goose aplica `00001_init_schema.sql`, round-trip de tipos (float, DATETIME→time).
+
+**Pendiente opcional:** contract tests y CDCT no bloquean — este servicio es
+REST/CRUD sin AMQP. Se dejan como mejora futura, no como deuda de M4.
 
 ---
 
@@ -147,13 +151,12 @@ M0 Base                ✅
 M1 Projects            ✅
 M2 Sensors             ✅
 M3 Equipment           ✅
-M4 Testing             🟡  ← siguiente foco sugerido
+M4 Testing             ✅  (unit + integration; contract/CDCT opcionales)
 M5 Seed                ⬜
 M6 Observabilidad      ⬜
 M7 Strangler           ⬜ (futuro)
-M8 Run/verify e2e      ⬜
+M8 Run/verify e2e      ⬜  ← repos ya verificados vs MySQL real; falta arranque e2e
 ```
 
-Próximo hito sugerido: **M4** (cerrar unit tests de service) o **M8** (verificar
-que lo construido corre de verdad). A decidir.
-```
+Próximo hito sugerido: **M8** (arranque end-to-end contra la infra ya levantada)
+o **M5** (seed). A decidir.

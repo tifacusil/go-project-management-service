@@ -11,11 +11,11 @@ import (
 )
 
 // Unit tests (CLAUDE.md §3.1): repository logic isolated from a real MySQL via sqlmock.
+// Integration (Testcontainers MySQL) en integration_test.go (tag `integration`).
 //
-// TODO(SE-practice): missing test layers for this service (CLAUDE.md §3):
-//   - contract tests: validate domain structs against contracts/openapi/*.yaml
-//   - CDCT (pact-go): producer/consumer compatibility
-//   - integration: Testcontainers MySQL for the critical CRUD flow
+// Opcional, no bloqueante (este servicio es REST/CRUD sin AMQP):
+//   - contract tests: validar structs de domain contra contracts/openapi/*.yaml
+//   - CDCT (pact-go): compatibilidad productor/consumidor
 
 func newMock(t *testing.T) (*sqlx.DB, sqlmock.Sqlmock) {
 	t.Helper()

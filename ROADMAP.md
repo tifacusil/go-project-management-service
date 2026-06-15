@@ -137,17 +137,19 @@ de RabbitMQ. Se documenta como N/A.
 
 ---
 
-## M7 — Database-per-service / Strangler Fig ⬜ (futuro)
+## M7 — Database-per-service ✅
 
-**Objetivo:** cutover del MySQL único compartido a instancia dedicada.
+**Objetivo:** cada microservicio en su propia instancia/DB, sin Shared Persistency.
 
-**Estado actual:** mitigado parcialmente — schema propio + usuario de mínimos
-privilegios. `TODO(SE-practice)` en `config.go`. Cutover real pendiente y
-coordinado a nivel monorepo.
+**Estado:** cumplido. El servicio se conecta a su instancia MySQL dedicada
+(`mysql-project-management`), con schema propio (`project_management`) y usuario
+de mínimos privilegios (`svc_project_mgmt`: SELECT/INSERT/UPDATE). goose dueño
+del schema. No comparte tablas con otros servicios → no hay bad smell de
+Shared Persistency (Taibi & Lenarduzzi 2018).
 
 ---
 
-## M8 — Run / verify end-to-end 🟡 (casi ✅)
+## M8 — Run / verify end-to-end ✅
 
 **Objetivo:** levantar el servicio contra MySQL + Consul reales y verificar el
 flujo CRUD completo (no solo build/test).
@@ -161,7 +163,7 @@ flujo CRUD completo (no solo build/test).
 | reglas de negocio (dup, tipo inválido, sensor activo) | ✅ |
 | persistencia real (soft-deletes en MySQL) | ✅ |
 | Consul: registrado + visible + check **passing** | ✅ |
-| graceful deregister al apagar | ⚠️ código correcto; no ejercitado por señal (Win/Git Bash no entrega SIGINT a exe nativo) |
+| graceful deregister al apagar | ✅ verificado con Ctrl+C en terminal Windows real: loguea "consul deregistered" y desaparece de /v1/agent/services |
 
 **Aprendizajes operativos:**
 - **Schema:** Opción B confirmada — goose dueño del schema; el infra solo crea
@@ -170,16 +172,10 @@ flujo CRUD completo (no solo build/test).
   contenedor y el servicio en el host; con `127.0.0.1` el check falla y Consul
   desregistra tras `DeregisterCriticalServiceAfter`.
 
-**Pendiente para ✅ pleno — RECORDATORIO:** verificar el deregister con una señal
-real. El código (`defer reg.Deregister()` en `ctx.Done()`) es estándar y correcto,
-pero no se ejercitó por señal (Win/Git Bash no entrega SIGINT a exe nativo).
-Trazado en código con `TODO(M8-verify)` en [cmd/server/main.go](cmd/server/main.go).
-
-  Cómo verificar:
-  1. `go build -o pmsvc.exe ./cmd/server` y correrlo en una terminal Windows real.
-  2. `Ctrl+C`. Debe loguear `consul deregistered`.
-  3. `curl http://localhost:8500/v1/agent/services` → ya no aparece el servicio.
-  (Alternativa: correr el binario en Linux/contenedor y `kill -INT`.)
+**Deregister verificado:** `Ctrl+C` en terminal Windows real → loguea
+`consul deregistered` y el servicio desaparece de `/v1/agent/services`. El
+`defer reg.Deregister()` en `ctx.Done()` funciona con SIGINT real (la limitación
+era solo de Git Bash, no del código).
 
 ---
 
@@ -193,9 +189,13 @@ M3 Equipment           ✅
 M4 Testing             ✅  (unit + integration; contract/CDCT opcionales)
 M5 Seed                ✅
 M6 Observabilidad      ✅
-M7 Strangler           ⬜ (futuro)
-M8 Run/verify e2e      🟡  (CRUD+Consul verde vs infra real; falta deregister por señal)
+M7 Database-per-service ✅  (instancia MySQL dedicada + usuario min-priv)
+M8 Run/verify e2e      ✅  (CRUD+Consul+deregister verificados vs infra real)
 ```
 
-Hitos núcleo (M0–M6) cerrados. Restan: **M7** (Strangler, futuro/coordinado a nivel
-monorepo) y el caveat de **M8** (deregister por señal — recordatorio en código).
+**Todos los hitos cerrados (M0–M8).** Reescritura Go con paridad funcional Java +
+prácticas SE (contract-first, DB-per-service, health real, logs estructurados,
+métricas Prometheus, migraciones versionadas).
+
+Mejoras opcionales no bloqueantes: contract tests/CDCT (sin AMQP en este servicio),
+Swagger UI runtime sirviendo el OpenAPI.

@@ -88,12 +88,9 @@ func Load() Config {
 
 // DSN builds the go-sql-driver/mysql connection string.
 //
-// TODO(SE-practice): database-per-service (CLAUDE.md §1.2). El sistema baseline
-// comparte un único MySQL entre los 6 servicios (Shared Persistency, bad smell —
-// Taibi & Lenarduzzi 2018). Este servicio ya apunta a su propio schema
-// `project_management_db` con el usuario de mínimos privilegios `proj-manager`
-// (ver scripts/01_min_privileges.sql). Cutover Strangler Fig pendiente:
-// extraer a instancia MySQL dedicada por servicio.
+// Database-per-service (CLAUDE.md §1.2): este servicio usa su instancia MySQL
+// dedicada + schema propio + usuario de mínimos privilegios. No comparte tablas
+// con otros servicios → sin Shared Persistency (Taibi & Lenarduzzi 2018).
 func (c Config) DSN() string {
 	return c.dsnFor(c.DBUser, c.DBPass, nil)
 }

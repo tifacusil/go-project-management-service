@@ -1,0 +1,58 @@
+name: CD — Publish image to GHCR
+
+# Continuous Delivery: publica la imagen en GitHub Container Registry como
+# ghcr.io/tifacusil/project-management:latest. Se ejecuta SÓLO cuando el workflow
+# de CI termina con éxito en main (no publica una imagen que no pasó tests/lint),
+# y también bajo demanda (workflow_dispatch).
+on:
+  workflow_run:
+    workflows: ["CI — Build, test & lint"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Permisos mínimos: leer el repo y escribir paquetes (GHCR) con GITHUB_TOKEN.
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/tifacusil/project-management
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Publica exactamente el commit que CI verificó (no el HEAD de la rama).
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false

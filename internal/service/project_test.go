@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/tifacusil/go-project-management-service/internal/domain"
@@ -85,8 +86,8 @@ func (f *fakeSensorRepo) CountByProjectIDAndStatus(_ context.Context, pid, _ str
 
 func mustErrKind(t *testing.T, err error, want Kind) {
 	t.Helper()
-	se, ok := err.(*Error)
-	if !ok {
+	var se *Error
+	if !errors.As(err, &se) {
 		t.Fatalf("want *service.Error kind=%d, got %T: %v", want, err, err)
 	}
 	if se.Kind != want {

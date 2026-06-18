@@ -57,4 +57,6 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1
+          # v2.12+ está compilado con Go 1.26; debe ser >= la versión de go.mod
+          # (1.25.7), si no falla con "Go language version ... lower than targeted".
+          version: v2.12.2

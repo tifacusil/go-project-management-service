@@ -13,11 +13,15 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 
 # Static, stripped binary. CGO off — pure-Go mysql driver, no libc needed.
-ARG VERSION=0.1.0
+# VERSION (hash del commit en CI) se inyecta en build-time vía linker flag -X:
+# queda fijo en el binario, inmutable en runtime (no se puede pisar por env).
+ARG VERSION=dev
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux \
-    go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
+    go build -trimpath \
+      -ldflags="-s -w -X github.com/tifacusil/go-project-management-service/internal/config.Version=${VERSION}" \
+      -o /out/server ./cmd/server
 
 # ---- Runtime stage ----
 # Alpine en vez de distroless: el healthcheck del compose de infra usa `wget`,
@@ -29,12 +33,6 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 WORKDIR /app
 COPY --from=build /out/server /app/server
-
-# VERSION (hash del commit en CI) como SERVICE_VERSION por defecto. La app lo lee
-# de env y lo reporta a Consul/logs. Los ARG no cruzan stages: hay que
-# redeclararlo aquí. El compose/orquestador puede sobreescribir SERVICE_VERSION.
-ARG VERSION=0.1.0
-ENV SERVICE_VERSION=$VERSION
 
 # Puerto HTTP por defecto (el compose mapea 8090:8080).
 EXPOSE 8080

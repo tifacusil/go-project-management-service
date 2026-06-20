@@ -15,6 +15,11 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// Version es la versión del servicio fijada en build-time mediante linker flags
+// (go build -ldflags "-X .../internal/config.Version=<commit-sha>"). Es inmutable
+// en runtime: NO se puede sobreescribir por env. "dev" cuando se compila sin flag.
+var Version = "dev"
+
 // Config holds runtime config sourced from env / .env (CLAUDE.md §1.7 — nada hardcodeado).
 type Config struct {
 	// Service identity (CLAUDE.md §6.5 — naming + tags para Consul).
@@ -58,7 +63,7 @@ func Load() Config {
 
 	return Config{
 		ServiceName:    env("SERVICE_NAME", "project-management-service"),
-		ServiceVersion: env("SERVICE_VERSION", "0.1.0"),
+		ServiceVersion: Version, // build-time (ldflags -X), inmutable; no de env.
 		Env:            env("ENV", "dev"),
 		InstanceID:     os.Getenv("INSTANCE_ID"), // del orquestador (compose/k8s); vacío => se genera
 

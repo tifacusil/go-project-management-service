@@ -30,6 +30,12 @@ RUN apk add --no-cache ca-certificates tzdata \
 WORKDIR /app
 COPY --from=build /out/server /app/server
 
+# VERSION (hash del commit en CI) como SERVICE_VERSION por defecto. La app lo lee
+# de env y lo reporta a Consul/logs. Los ARG no cruzan stages: hay que
+# redeclararlo aquí. El compose/orquestador puede sobreescribir SERVICE_VERSION.
+ARG VERSION=0.1.0
+ENV SERVICE_VERSION=$VERSION
+
 # Puerto HTTP por defecto (el compose mapea 8090:8080).
 EXPOSE 8080
 
